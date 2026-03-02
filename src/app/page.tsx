@@ -2,12 +2,11 @@
 
 import { useMemo, useState } from "react";
 import Renderer from "@/components/Renderer";
-import { SlideData } from "@/types/slide";
 
 export default function Home() {
   const [jsonInput, setJsonInput] = useState<string>("");
 
-  const parsed = useMemo<SlideData | null>(() => {
+  const parsed = useMemo<unknown>(() => {
     try {
       return JSON.parse(jsonInput);
     } catch {

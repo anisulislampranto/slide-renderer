@@ -1,5 +1,5 @@
 {
-  "name": "slide-renderer",
+  "name": "json-renderer",
   "version": "0.1.0",
   "private": true,
   "scripts": {
