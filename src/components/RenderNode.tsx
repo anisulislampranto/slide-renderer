@@ -6,9 +6,10 @@ interface Props {
     path: number[];
     selectedPath?: number[] | null;
     onSelectNode?: (path: number[], node: NormalizedSlideNode) => void;
+    onContextNode?: (path: number[], node: NormalizedSlideNode) => void;
 }
 
-export default function RenderNode({ node, path, selectedPath, onSelectNode }: Props) {
+export default function RenderNode({ node, path, selectedPath, onSelectNode, onContextNode }: Props) {
     const type = node.type.toLowerCase();
     const isSelected =
         selectedPath !== null &&
@@ -30,6 +31,13 @@ export default function RenderNode({ node, path, selectedPath, onSelectNode }: P
         onSelectNode(path, node);
     };
 
+    const handleContextMenu = (event: MouseEvent<HTMLElement>) => {
+        if (!onContextNode) return;
+        event.preventDefault();
+        event.stopPropagation();
+        onContextNode(path, node);
+    };
+
     const children = node.children.map((child, index) => (
         <RenderNode
             key={`${child.id ?? child.type}-${index}`}
@@ -37,6 +45,7 @@ export default function RenderNode({ node, path, selectedPath, onSelectNode }: P
             path={[...path, index]}
             selectedPath={selectedPath}
             onSelectNode={onSelectNode}
+            onContextNode={onContextNode}
         />
     ));
 
@@ -61,7 +70,7 @@ export default function RenderNode({ node, path, selectedPath, onSelectNode }: P
 
     if (textTypes.has(type)) {
         return (
-            <div style={{ ...node.style, ...selectableStyle }} onClick={handleSelect}>
+            <div style={{ ...node.style, ...selectableStyle }} onClick={handleSelect} onContextMenu={handleContextMenu}>
                 {node.text ?? node.label ?? ""}
             </div>
         );
@@ -74,6 +83,7 @@ export default function RenderNode({ node, path, selectedPath, onSelectNode }: P
                 alt={node.alt ?? node.label ?? "slide-image"}
                 style={{ ...node.style, ...selectableStyle }}
                 onClick={handleSelect}
+                onContextMenu={handleContextMenu}
             />
         );
     }
@@ -89,6 +99,7 @@ export default function RenderNode({ node, path, selectedPath, onSelectNode }: P
                     ...selectableStyle,
                 }}
                 onClick={handleSelect}
+                onContextMenu={handleContextMenu}
             >
                 {node.label ?? node.text ?? "Button"}
             </button>
@@ -108,6 +119,7 @@ export default function RenderNode({ node, path, selectedPath, onSelectNode }: P
                         ...selectableStyle,
                     }}
                     onClick={handleSelect}
+                    onContextMenu={handleContextMenu}
                 />
             );
         }
@@ -120,6 +132,7 @@ export default function RenderNode({ node, path, selectedPath, onSelectNode }: P
                     ...selectableStyle,
                 }}
                 onClick={handleSelect}
+                onContextMenu={handleContextMenu}
             >
                 {node.label ?? node.text ?? type.toUpperCase()}
                 {children}
@@ -129,7 +142,7 @@ export default function RenderNode({ node, path, selectedPath, onSelectNode }: P
 
     if (shapeTypes.has(type)) {
         return (
-            <div style={{ ...node.style, ...selectableStyle }} onClick={handleSelect}>
+            <div style={{ ...node.style, ...selectableStyle }} onClick={handleSelect} onContextMenu={handleContextMenu}>
                 {children}
             </div>
         );
@@ -143,7 +156,7 @@ export default function RenderNode({ node, path, selectedPath, onSelectNode }: P
         };
 
         return (
-            <div style={{ ...style, ...selectableStyle }} onClick={handleSelect}>
+            <div style={{ ...style, ...selectableStyle }} onClick={handleSelect} onContextMenu={handleContextMenu}>
                 {children}
             </div>
         );
@@ -152,14 +165,14 @@ export default function RenderNode({ node, path, selectedPath, onSelectNode }: P
     const hasRenderableText = typeof node.text === "string" && node.text.length > 0;
     if (hasRenderableText || children.length > 0) {
         return (
-            <div style={{ ...node.style, ...selectableStyle }} onClick={handleSelect}>
+            <div style={{ ...node.style, ...selectableStyle }} onClick={handleSelect} onContextMenu={handleContextMenu}>
                 {node.text}
                 {children}
             </div>
         );
     }
 
-    return <div style={{ ...node.style, ...selectableStyle }} onClick={handleSelect} />;
+    return <div style={{ ...node.style, ...selectableStyle }} onClick={handleSelect} onContextMenu={handleContextMenu} />;
 }
 
 const placeholderStyle: CSSProperties = {

@@ -24,6 +24,7 @@ type TextStyleKey =
   | "justifyContent"
   | "alignItems";
 type StyleKey = NumericStyleKey | TextStyleKey;
+type InspectorTab = "inspector" | "structure";
 
 const TEXT_TYPES = new Set(["text", "title", "heading", "paragraph", "caption", "button", "cta", "link"]);
 const IMAGE_TYPES = new Set(["image", "photo", "picture", "icon", "logo"]);
@@ -45,6 +46,8 @@ export default function Home() {
   const [jsonInput, setJsonInput] = useState<string>("");
   const [copyState, setCopyState] = useState<"idle" | "copied" | "error">("idle");
   const [selectedPath, setSelectedPath] = useState<number[] | null>(null);
+  const [inspectorOpen, setInspectorOpen] = useState<boolean>(false);
+  const [inspectorTab, setInspectorTab] = useState<InspectorTab>("inspector");
 
   const parsed = useMemo<unknown>(() => {
     try {
@@ -133,188 +136,344 @@ export default function Home() {
   };
 
   return (
-    <div className="min-h-screen bg-neutral-950 text-white flex flex-col">
-
-      {/* Header */}
-      <header className="border-b border-neutral-800 px-8 py-4">
-        <div className="max-w-6xl mx-auto">
-          <h1 className="text-xl font-semibold tracking-wide">
-            JSON Renderer
-          </h1>
-          <p className="text-sm text-neutral-400 mt-1">
-            Paste structured JSON and preview the rendered slide below.
-          </p>
-        </div>
-      </header>
-
-      {/* Preview Section */}
-      <section className="flex-1 px-8 py-8 overflow-auto">
-        <div className="max-w-6xl mx-auto">
-
-          <h2 className="text-lg font-medium mb-6">Slide Preview</h2>
-
-          <div className="bg-neutral-900 rounded-2xl p-6 shadow-2xl border border-neutral-800 flex justify-center">
-            {isValid ? (
-              <Renderer
-                data={parsed}
-                selectedPath={selectedPath}
-                onSelectNode={(path) => setSelectedPath(path)}
-              />
-            ) : (
-              <div className="text-neutral-500 text-sm">
-                Fix JSON errors to preview slide.
-              </div>
-            )}
+    <div className="min-h-screen bg-neutral-950 text-white flex">
+      <main className="flex-1 min-w-0">
+        <header className="border-b border-neutral-800 px-8 py-4">
+          <div className="max-w-6xl mx-auto">
+            <h1 className="text-xl font-semibold tracking-wide">JSON Renderer</h1>
+            <p className="text-sm text-neutral-400 mt-1">
+              Paste JSON, preview it, then right-click any element to open the smart inspector.
+            </p>
           </div>
+        </header>
 
-          <div className="mt-6 bg-neutral-900 rounded-2xl p-5 border border-neutral-800">
-            <h3 className="text-base font-medium mb-3">Element Editor</h3>
-            {selectedNode ? (
-              <div className="space-y-4 text-sm">
-                <p className="text-neutral-300">
-                  Selected: <span className="font-semibold text-white">{selectedNode.type}</span>
-                </p>
+        <section className="flex-1 px-8 py-8 overflow-auto">
+          <div className="max-w-6xl mx-auto">
+            <div className="flex items-center justify-between mb-6 gap-4">
+              <h2 className="text-lg font-medium">Slide Preview</h2>
+              <div className="text-xs text-neutral-400">Tip: right-click node to inspect/edit</div>
+            </div>
 
-                {TEXT_TYPES.has(selectedNode.type) && (
-                  <label className="block">
-                    <span className="text-neutral-400">Text</span>
-                    <textarea
-                      value={selectedNode.text ?? selectedNode.label ?? ""}
-                      onChange={(e) => updateNodeText(e.target.value)}
-                      className="mt-1 w-full h-24 bg-neutral-950 border border-neutral-700 rounded-md p-2 outline-none focus:ring-2 focus:ring-cyan-500"
-                    />
-                  </label>
-                )}
-
-                {(IMAGE_TYPES.has(selectedNode.type) || selectedNode.src) && (
-                  <label className="block">
-                    <span className="text-neutral-400">Image URL</span>
-                    <input
-                      value={selectedNode.src ?? ""}
-                      onChange={(e) => updateNodeUrl("src", e.target.value)}
-                      className="mt-1 w-full bg-neutral-950 border border-neutral-700 rounded-md p-2 outline-none focus:ring-2 focus:ring-cyan-500"
-                    />
-                  </label>
-                )}
-
-                {(EMBED_TYPES.has(selectedNode.type) || selectedNode.embedUrl) && (
-                  <label className="block">
-                    <span className="text-neutral-400">Embed URL</span>
-                    <input
-                      value={selectedNode.embedUrl ?? ""}
-                      onChange={(e) => updateNodeUrl("embedUrl", e.target.value)}
-                      className="mt-1 w-full bg-neutral-950 border border-neutral-700 rounded-md p-2 outline-none focus:ring-2 focus:ring-cyan-500"
-                    />
-                  </label>
-                )}
-
-                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-3">
-                  {NUMERIC_STYLE_CONTROLS.map((control) => (
-                    <StyleControl
-                      key={control.key}
-                      label={control.label}
-                      value={readStyleValue(selectedNode, control.key)}
-                      onChange={(value) => updateStyleValue(control.key, value)}
-                      onDecrease={() =>
-                        adjustStyleNumeric(control.key, -control.step, control.min, control.max)
-                      }
-                      onIncrease={() =>
-                        adjustStyleNumeric(control.key, control.step, control.min, control.max)
-                      }
-                    />
-                  ))}
-                </div>
-
-                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3">
-                  <TextStyleControl
-                    label="Background"
-                    value={readStyleValue(selectedNode, "background")}
-                    onChange={(value) => updateStyleValue("background", value)}
-                    placeholder="#111111 or linear-gradient(...)"
-                  />
-                  <TextStyleControl
-                    label="Text Color"
-                    value={readStyleValue(selectedNode, "color")}
-                    onChange={(value) => updateStyleValue("color", value)}
-                    placeholder="#ffffff"
-                  />
-                  <SelectStyleControl
-                    label="Position"
-                    value={readStyleValue(selectedNode, "position")}
-                    onChange={(value) => updateStyleValue("position", value)}
-                    options={["", "static", "relative", "absolute"]}
-                  />
-                  <SelectStyleControl
-                    label="Display"
-                    value={readStyleValue(selectedNode, "display")}
-                    onChange={(value) => updateStyleValue("display", value)}
-                    options={["", "block", "inline-block", "flex", "grid"]}
-                  />
-                  <SelectStyleControl
-                    label="Direction"
-                    value={readStyleValue(selectedNode, "flexDirection")}
-                    onChange={(value) => updateStyleValue("flexDirection", value)}
-                    options={["", "row", "column", "row-reverse", "column-reverse"]}
-                  />
-                  <SelectStyleControl
-                    label="Justify"
-                    value={readStyleValue(selectedNode, "justifyContent")}
-                    onChange={(value) => updateStyleValue("justifyContent", value)}
-                    options={["", "flex-start", "center", "flex-end", "space-between", "space-around", "space-evenly"]}
-                  />
-                  <SelectStyleControl
-                    label="Align Items"
-                    value={readStyleValue(selectedNode, "alignItems")}
-                    onChange={(value) => updateStyleValue("alignItems", value)}
-                    options={["", "stretch", "flex-start", "center", "flex-end", "baseline"]}
-                  />
-                </div>
-              </div>
-            ) : (
-              <p className="text-neutral-400 text-sm">
-                Click any text, image, shape, or embed in the preview to edit it here.
-              </p>
-            )}
-          </div>
-
-        </div>
-      </section>
-
-
-      {/* JSON Editor Section */}
-      <section className="px-8 py-6 border-b border-neutral-800">
-        <div className="max-w-6xl mx-auto">
-          <div className="flex items-center justify-between mb-3">
-            <h2 className="text-lg font-medium">JSON Input</h2>
-            <div className="flex items-center gap-2">
-              <button
-                type="button"
-                onClick={handleCopyJson}
-                disabled={!canCopy}
-                className="text-xs px-3 py-1 rounded-full border border-neutral-600 bg-neutral-800 text-neutral-200 disabled:opacity-50 disabled:cursor-not-allowed hover:bg-neutral-700 transition"
-              >
-                {copyState === "copied" ? "Copied" : copyState === "error" ? "Copy failed" : "Copy JSON"}
-              </button>
-
-              <span
-                className={`text-xs px-3 py-1 rounded-full ${isValid
-                  ? "bg-emerald-600/20 text-emerald-400"
-                  : "bg-red-600/20 text-red-400"
-                  }`}
-              >
-                {isValid ? "Valid JSON" : "Invalid JSON"}
-              </span>
+            <div className="bg-neutral-900 rounded-2xl p-6 shadow-2xl border border-neutral-800 flex justify-center">
+              {isValid ? (
+                <Renderer
+                  data={parsed}
+                  selectedPath={selectedPath}
+                  onSelectNode={(path) => setSelectedPath(path)}
+                  onContextNode={(path) => {
+                    setSelectedPath(path);
+                    setInspectorTab("inspector");
+                    setInspectorOpen(true);
+                  }}
+                />
+              ) : (
+                <div className="text-neutral-500 text-sm">Fix JSON errors to preview slide.</div>
+              )}
             </div>
           </div>
+        </section>
 
+        <section className="px-8 py-6 border-t border-neutral-800">
+          <div className="max-w-6xl mx-auto">
+            <div className="flex items-center justify-between mb-3">
+              <h2 className="text-lg font-medium">JSON Input</h2>
+              <div className="flex items-center gap-2">
+                <button
+                  type="button"
+                  onClick={handleCopyJson}
+                  disabled={!canCopy}
+                  className="text-xs px-3 py-1 rounded-full border border-neutral-600 bg-neutral-800 text-neutral-200 disabled:opacity-50 disabled:cursor-not-allowed hover:bg-neutral-700 transition"
+                >
+                  {copyState === "copied" ? "Copied" : copyState === "error" ? "Copy failed" : "Copy JSON"}
+                </button>
+
+                <button
+                  type="button"
+                  onClick={() => setInspectorOpen((prev) => !prev)}
+                  className="text-xs px-3 py-1 rounded-full border border-cyan-700 bg-cyan-900/20 text-cyan-300 hover:bg-cyan-900/40 transition"
+                >
+                  {inspectorOpen ? "Hide Inspector" : "Show Inspector"}
+                </button>
+
+                <span
+                  className={`text-xs px-3 py-1 rounded-full ${
+                    isValid ? "bg-emerald-600/20 text-emerald-400" : "bg-red-600/20 text-red-400"
+                  }`}
+                >
+                  {isValid ? "Valid JSON" : "Invalid JSON"}
+                </span>
+              </div>
+            </div>
+
+            <textarea
+              value={jsonInput}
+              onChange={(e) => setJsonInput(e.target.value)}
+              placeholder="Paste your slide JSON here..."
+              className="w-full h-[420px] bg-neutral-900 border border-neutral-700 rounded-lg p-4 text-sm font-mono outline-none focus:ring-2 focus:ring-blue-500 transition"
+            />
+          </div>
+        </section>
+      </main>
+
+      {inspectorOpen && (
+        <aside className="w-[420px] border-l border-neutral-800 bg-neutral-900/95 backdrop-blur-sm sticky top-0 h-screen overflow-y-auto">
+          <div className="p-4 border-b border-neutral-800 flex items-center justify-between">
+            <div>
+              <h3 className="text-base font-semibold">Smart Inspector</h3>
+              <p className="text-xs text-neutral-400 mt-1">
+                {selectedPath ? `Path: ${selectedPath.join(" > ")}` : "No element selected"}
+              </p>
+            </div>
+            <button
+              type="button"
+              onClick={() => setInspectorOpen(false)}
+              className="text-xs px-3 py-1 rounded-md border border-neutral-700 text-neutral-300 hover:bg-neutral-800"
+            >
+              Close
+            </button>
+          </div>
+
+          <div className="px-4 pt-4">
+            <div className="grid grid-cols-2 rounded-lg border border-neutral-800 overflow-hidden mb-4">
+              <button
+                type="button"
+                onClick={() => setInspectorTab("inspector")}
+                className={`py-2 text-sm ${
+                  inspectorTab === "inspector" ? "bg-cyan-900/30 text-cyan-300" : "bg-neutral-900 text-neutral-400"
+                }`}
+              >
+                Inspector
+              </button>
+              <button
+                type="button"
+                onClick={() => setInspectorTab("structure")}
+                className={`py-2 text-sm ${
+                  inspectorTab === "structure" ? "bg-cyan-900/30 text-cyan-300" : "bg-neutral-900 text-neutral-400"
+                }`}
+              >
+                Structure
+              </button>
+            </div>
+
+            {inspectorTab === "inspector" ? (
+              <InspectorPanel
+                selectedNode={selectedNode}
+                onUpdateNodeText={updateNodeText}
+                onUpdateNodeUrl={updateNodeUrl}
+                onUpdateStyleValue={updateStyleValue}
+                onAdjustStyleNumeric={adjustStyleNumeric}
+              />
+            ) : (
+              <StructurePanel
+                slide={normalizedSlide}
+                selectedPath={selectedPath}
+                onSelectPath={(path) => {
+                  setSelectedPath(path);
+                  setInspectorTab("inspector");
+                }}
+              />
+            )}
+          </div>
+        </aside>
+      )}
+    </div>
+  );
+}
+
+interface InspectorPanelProps {
+  selectedNode: NormalizedSlideNode | null;
+  onUpdateNodeText: (value: string) => void;
+  onUpdateNodeUrl: (key: "src" | "embedUrl", value: string) => void;
+  onUpdateStyleValue: (key: StyleKey, value: string) => void;
+  onAdjustStyleNumeric: (key: NumericStyleKey, delta: number, min?: number, max?: number) => void;
+}
+
+function InspectorPanel({
+  selectedNode,
+  onUpdateNodeText,
+  onUpdateNodeUrl,
+  onUpdateStyleValue,
+  onAdjustStyleNumeric,
+}: InspectorPanelProps) {
+  if (!selectedNode) {
+    return <p className="text-sm text-neutral-400">Right-click an element in preview to edit it here.</p>;
+  }
+
+  return (
+    <div className="space-y-4 text-sm pb-6">
+      <p className="text-neutral-300">
+        Selected: <span className="font-semibold text-white">{selectedNode.type}</span>
+      </p>
+
+      {TEXT_TYPES.has(selectedNode.type) && (
+        <label className="block">
+          <span className="text-neutral-400">Text</span>
           <textarea
-            value={jsonInput}
-            onChange={(e) => setJsonInput(e.target.value)}
-            placeholder="Paste your slide JSON here..."
-            className="w-full h-screen bg-neutral-900 border border-neutral-700 rounded-lg p-4 text-sm font-mono outline-none focus:ring-2 focus:ring-blue-500 transition"
+            value={selectedNode.text ?? selectedNode.label ?? ""}
+            onChange={(e) => onUpdateNodeText(e.target.value)}
+            className="mt-1 w-full h-24 bg-neutral-950 border border-neutral-700 rounded-md p-2 outline-none focus:ring-2 focus:ring-cyan-500"
           />
+        </label>
+      )}
+
+      {(IMAGE_TYPES.has(selectedNode.type) || selectedNode.src) && (
+        <label className="block">
+          <span className="text-neutral-400">Image URL</span>
+          <input
+            value={selectedNode.src ?? ""}
+            onChange={(e) => onUpdateNodeUrl("src", e.target.value)}
+            className="mt-1 w-full bg-neutral-950 border border-neutral-700 rounded-md p-2 outline-none focus:ring-2 focus:ring-cyan-500"
+          />
+        </label>
+      )}
+
+      {(EMBED_TYPES.has(selectedNode.type) || selectedNode.embedUrl) && (
+        <label className="block">
+          <span className="text-neutral-400">Embed URL</span>
+          <input
+            value={selectedNode.embedUrl ?? ""}
+            onChange={(e) => onUpdateNodeUrl("embedUrl", e.target.value)}
+            className="mt-1 w-full bg-neutral-950 border border-neutral-700 rounded-md p-2 outline-none focus:ring-2 focus:ring-cyan-500"
+          />
+        </label>
+      )}
+
+      <div className="grid grid-cols-2 gap-3">
+        {NUMERIC_STYLE_CONTROLS.map((control) => (
+          <StyleControl
+            key={control.key}
+            label={control.label}
+            value={readStyleValue(selectedNode, control.key)}
+            onChange={(value) => onUpdateStyleValue(control.key, value)}
+            onDecrease={() => onAdjustStyleNumeric(control.key, -control.step, control.min, control.max)}
+            onIncrease={() => onAdjustStyleNumeric(control.key, control.step, control.min, control.max)}
+          />
+        ))}
+      </div>
+
+      <div className="grid grid-cols-1 gap-3">
+        <TextStyleControl
+          label="Background"
+          value={readStyleValue(selectedNode, "background")}
+          onChange={(value) => onUpdateStyleValue("background", value)}
+          placeholder="#111111 or linear-gradient(...)"
+        />
+        <TextStyleControl
+          label="Text Color"
+          value={readStyleValue(selectedNode, "color")}
+          onChange={(value) => onUpdateStyleValue("color", value)}
+          placeholder="#ffffff"
+        />
+
+        <SelectStyleControl
+          label="Position"
+          value={readStyleValue(selectedNode, "position")}
+          onChange={(value) => onUpdateStyleValue("position", value)}
+          options={["", "static", "relative", "absolute"]}
+        />
+        <SelectStyleControl
+          label="Display"
+          value={readStyleValue(selectedNode, "display")}
+          onChange={(value) => onUpdateStyleValue("display", value)}
+          options={["", "block", "inline-block", "flex", "grid"]}
+        />
+        <SelectStyleControl
+          label="Direction"
+          value={readStyleValue(selectedNode, "flexDirection")}
+          onChange={(value) => onUpdateStyleValue("flexDirection", value)}
+          options={["", "row", "column", "row-reverse", "column-reverse"]}
+        />
+        <SelectStyleControl
+          label="Justify"
+          value={readStyleValue(selectedNode, "justifyContent")}
+          onChange={(value) => onUpdateStyleValue("justifyContent", value)}
+          options={["", "flex-start", "center", "flex-end", "space-between", "space-around", "space-evenly"]}
+        />
+        <SelectStyleControl
+          label="Align Items"
+          value={readStyleValue(selectedNode, "alignItems")}
+          onChange={(value) => onUpdateStyleValue("alignItems", value)}
+          options={["", "stretch", "flex-start", "center", "flex-end", "baseline"]}
+        />
+      </div>
+    </div>
+  );
+}
+
+interface StructurePanelProps {
+  slide: NormalizedSlide | null;
+  selectedPath: number[] | null;
+  onSelectPath: (path: number[]) => void;
+}
+
+function StructurePanel({ slide, selectedPath, onSelectPath }: StructurePanelProps) {
+  if (!slide) {
+    return <p className="text-sm text-neutral-400">Provide valid JSON to load structure.</p>;
+  }
+
+  if (slide.children.length === 0) {
+    return <p className="text-sm text-neutral-400">No nodes found in this slide.</p>;
+  }
+
+  return (
+    <div className="pb-6">
+      <p className="text-xs text-neutral-400 mb-3">Click a node to focus it in inspector.</p>
+      <div className="space-y-1">
+        {slide.children.map((node, index) => (
+          <StructureNodeItem
+            key={`${node.id ?? node.type}-${index}`}
+            node={node}
+            path={[index]}
+            depth={0}
+            selectedPath={selectedPath}
+            onSelectPath={onSelectPath}
+          />
+        ))}
+      </div>
+    </div>
+  );
+}
+
+interface StructureNodeItemProps {
+  node: NormalizedSlideNode;
+  path: number[];
+  depth: number;
+  selectedPath: number[] | null;
+  onSelectPath: (path: number[]) => void;
+}
+
+function StructureNodeItem({ node, path, depth, selectedPath, onSelectPath }: StructureNodeItemProps) {
+  const active = isSamePath(path, selectedPath);
+  const label = `${node.type}${node.text ? `: ${node.text.slice(0, 22)}` : ""}`;
+
+  return (
+    <div>
+      <button
+        type="button"
+        onClick={() => onSelectPath(path)}
+        style={{ paddingLeft: `${depth * 16 + 10}px` }}
+        className={`w-full text-left py-1.5 pr-2 rounded text-xs border ${
+          active
+            ? "border-cyan-500 bg-cyan-900/25 text-cyan-200"
+            : "border-neutral-800 bg-neutral-950 text-neutral-300 hover:bg-neutral-900"
+        }`}
+      >
+        {label}
+      </button>
+      {node.children.length > 0 && (
+        <div className="space-y-1 mt-1">
+          {node.children.map((child, index) => (
+            <StructureNodeItem
+              key={`${child.id ?? child.type}-${index}`}
+              node={child}
+              path={[...path, index]}
+              depth={depth + 1}
+              selectedPath={selectedPath}
+              onSelectPath={onSelectPath}
+            />
+          ))}
         </div>
-      </section>
+      )}
     </div>
   );
 }
@@ -353,18 +512,14 @@ function roundNumeric(value: number): number {
 }
 
 function isNumericStyleKey(key: StyleKey): key is NumericStyleKey {
-  return [
-    "fontSize",
-    "width",
-    "height",
-    "padding",
-    "margin",
-    "left",
-    "top",
-    "gap",
-    "borderRadius",
-    "opacity",
-  ].includes(key);
+  return ["fontSize", "width", "height", "padding", "margin", "left", "top", "gap", "borderRadius", "opacity"].includes(
+    key
+  );
+}
+
+function isSamePath(a: number[] | null, b: number[] | null): boolean {
+  if (!a || !b || a.length !== b.length) return false;
+  return a.every((value, index) => value === b[index]);
 }
 
 interface StyleControlProps {
@@ -441,8 +596,8 @@ function SelectStyleControl({ label, value, onChange, options }: SelectStyleCont
         onChange={(e) => onChange(e.target.value)}
         className="w-full bg-neutral-900 border border-neutral-700 rounded-md p-2 outline-none focus:ring-2 focus:ring-cyan-500"
       >
-        {options.map((option) => (
-          <option key={option || "empty"} value={option}>
+        {options.map((option, index) => (
+          <option key={`${option || "unset"}-${index}`} value={option}>
             {option || "unset"}
           </option>
         ))}

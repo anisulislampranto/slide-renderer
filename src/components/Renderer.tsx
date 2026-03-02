@@ -6,9 +6,10 @@ interface Props {
     data: unknown;
     selectedPath?: number[] | null;
     onSelectNode?: (path: number[], node: NormalizedSlideNode) => void;
+    onContextNode?: (path: number[], node: NormalizedSlideNode) => void;
 }
 
-export default function Renderer({ data, selectedPath, onSelectNode }: Props) {
+export default function Renderer({ data, selectedPath, onSelectNode, onContextNode }: Props) {
     const normalized = normalizeSlideData(data);
 
     return (
@@ -33,6 +34,7 @@ export default function Renderer({ data, selectedPath, onSelectNode }: Props) {
                         path={[index]}
                         selectedPath={selectedPath}
                         onSelectNode={onSelectNode}
+                        onContextNode={onContextNode}
                     />
                 ))}
             </div>
