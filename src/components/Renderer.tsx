@@ -1,11 +1,14 @@
+import { NormalizedSlideNode } from "@/lib/slide-normalizer";
 import RenderNode from "./RenderNode";
 import { normalizeSlideData } from "@/lib/slide-normalizer";
 
 interface Props {
     data: unknown;
+    selectedPath?: number[] | null;
+    onSelectNode?: (path: number[], node: NormalizedSlideNode) => void;
 }
 
-export default function Renderer({ data }: Props) {
+export default function Renderer({ data, selectedPath, onSelectNode }: Props) {
     const normalized = normalizeSlideData(data);
 
     return (
@@ -24,7 +27,13 @@ export default function Renderer({ data }: Props) {
                 }}
             >
                 {normalized.children.map((node, index) => (
-                    <RenderNode key={index} node={node} />
+                    <RenderNode
+                        key={index}
+                        node={node}
+                        path={[index]}
+                        selectedPath={selectedPath}
+                        onSelectNode={onSelectNode}
+                    />
                 ))}
             </div>
         </div>

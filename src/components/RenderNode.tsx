@@ -1,15 +1,43 @@
-import { CSSProperties } from "react";
+import { CSSProperties, MouseEvent } from "react";
 import { NormalizedSlideNode } from "@/lib/slide-normalizer";
 
 interface Props {
     node: NormalizedSlideNode;
+    path: number[];
+    selectedPath?: number[] | null;
+    onSelectNode?: (path: number[], node: NormalizedSlideNode) => void;
 }
 
-export default function RenderNode({ node }: Props) {
+export default function RenderNode({ node, path, selectedPath, onSelectNode }: Props) {
     const type = node.type.toLowerCase();
+    const isSelected =
+        selectedPath !== null &&
+        selectedPath !== undefined &&
+        selectedPath.length === path.length &&
+        selectedPath.every((segment, index) => segment === path[index]);
+
+    const selectableStyle: CSSProperties = onSelectNode
+        ? {
+            cursor: "pointer",
+            outline: isSelected ? "2px solid #22d3ee" : undefined,
+            outlineOffset: isSelected ? 1 : undefined,
+        }
+        : {};
+
+    const handleSelect = (event: MouseEvent<HTMLElement>) => {
+        if (!onSelectNode) return;
+        event.stopPropagation();
+        onSelectNode(path, node);
+    };
 
     const children = node.children.map((child, index) => (
-        <RenderNode key={`${child.id ?? child.type}-${index}`} node={child} />
+        <RenderNode
+            key={`${child.id ?? child.type}-${index}`}
+            node={child}
+            path={[...path, index]}
+            selectedPath={selectedPath}
+            onSelectNode={onSelectNode}
+        />
     ));
 
     const containerTypes = new Set([
@@ -32,7 +60,11 @@ export default function RenderNode({ node }: Props) {
     const shapeTypes = new Set(["shape", "rect", "rectangle", "circle", "line", "divider", "spacer"]);
 
     if (textTypes.has(type)) {
-        return <div style={node.style}>{node.text ?? node.label ?? ""}</div>;
+        return (
+            <div style={{ ...node.style, ...selectableStyle }} onClick={handleSelect}>
+                {node.text ?? node.label ?? ""}
+            </div>
+        );
     }
 
     if (imageTypes.has(type) && node.src) {
@@ -40,7 +72,8 @@ export default function RenderNode({ node }: Props) {
             <img
                 src={node.src}
                 alt={node.alt ?? node.label ?? "slide-image"}
-                style={node.style}
+                style={{ ...node.style, ...selectableStyle }}
+                onClick={handleSelect}
             />
         );
     }
@@ -53,7 +86,9 @@ export default function RenderNode({ node }: Props) {
                     border: "none",
                     cursor: "pointer",
                     ...node.style,
+                    ...selectableStyle,
                 }}
+                onClick={handleSelect}
             >
                 {node.label ?? node.text ?? "Button"}
             </button>
@@ -70,7 +105,9 @@ export default function RenderNode({ node }: Props) {
                     style={{
                         border: "none",
                         ...node.style,
+                        ...selectableStyle,
                     }}
+                    onClick={handleSelect}
                 />
             );
         }
@@ -80,7 +117,9 @@ export default function RenderNode({ node }: Props) {
                 style={{
                     ...placeholderStyle,
                     ...node.style,
+                    ...selectableStyle,
                 }}
+                onClick={handleSelect}
             >
                 {node.label ?? node.text ?? type.toUpperCase()}
                 {children}
@@ -89,7 +128,11 @@ export default function RenderNode({ node }: Props) {
     }
 
     if (shapeTypes.has(type)) {
-        return <div style={node.style}>{children}</div>;
+        return (
+            <div style={{ ...node.style, ...selectableStyle }} onClick={handleSelect}>
+                {children}
+            </div>
+        );
     }
 
     if (containerTypes.has(type)) {
@@ -99,20 +142,24 @@ export default function RenderNode({ node }: Props) {
             ...node.style,
         };
 
-        return <div style={style}>{children}</div>;
+        return (
+            <div style={{ ...style, ...selectableStyle }} onClick={handleSelect}>
+                {children}
+            </div>
+        );
     }
 
     const hasRenderableText = typeof node.text === "string" && node.text.length > 0;
     if (hasRenderableText || children.length > 0) {
         return (
-            <div style={node.style}>
+            <div style={{ ...node.style, ...selectableStyle }} onClick={handleSelect}>
                 {node.text}
                 {children}
             </div>
         );
     }
 
-    return <div style={node.style} />;
+    return <div style={{ ...node.style, ...selectableStyle }} onClick={handleSelect} />;
 }
 
 const placeholderStyle: CSSProperties = {
